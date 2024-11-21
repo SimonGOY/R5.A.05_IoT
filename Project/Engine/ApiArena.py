@@ -79,6 +79,83 @@ def get_character(cid):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
+@app.route('/set_target', methods=['POST'])
+def set_target():
+    """Permet à un personnage de choisir une cible."""
+    try:
+        # Récupérer les données du joueur et de la cible depuis la requête
+        data = request.json
+
+        # Vérifier que l'ID du personnage et de la cible sont présents
+        required_fields = ["cid", "target_id"]
+        if not all(field in data for field in required_fields):
+            return jsonify({"error": "Les IDs du personnage et de la cible sont manquants."}), 400
+
+        cid = data["cid"]
+        target_id = data["target_id"]
+
+        # Trouver le personnage avec l'ID donné
+        character = next((char for char in engine._arena._playersList if char.isId(cid)), None)
+        if character is None:
+            return jsonify({"error": f"Personnage avec l'ID '{cid}' introuvable."}), 404
+
+        # Trouver la cible avec l'ID donné
+        target = next((char for char in engine._arena._playersList if char.isId(target_id)), None)
+        if target is None:
+            return jsonify({"error": f"Personnage avec l'ID '{target_id}' introuvable."}), 404
+
+        # Définir la cible pour le personnage
+        character.setTarget(target)
+
+        # Retourner une réponse de succès
+        return jsonify({"message": f"Le personnage '{cid}' a maintenant '{target_id}' comme cible."}), 200
+
+    except Exception as e:
+        # Gérer les erreurs
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/set_action', methods=['POST'])
+def set_action():
+    """Permet à un personnage de définir une action."""
+    try:
+        # Récupérer les données du joueur et de l'action depuis la requête
+        data = request.json
+
+        # Vérifier que l'ID du personnage et l'action sont présents
+        required_fields = ["cid", "action"]
+        if not all(field in data for field in required_fields):
+            return jsonify({"error": "L'ID du personnage et l'action sont manquants."}), 400
+
+        cid = data["cid"]
+        action = data["action"]
+
+        # Vérifier que l'action est valide (ex: HIT, BLOCK, DODGE, FLY)
+        valid_actions = ["HIT", "BLOCK", "DODGE", "FLY"]
+        if action not in valid_actions:
+            return jsonify({"error": f"L'action '{action}' n'est pas valide."}), 400
+
+        # Trouver le personnage avec l'ID donné
+        character = next((char for char in engine._arena._playersList if char.isId(cid)), None)
+        if character is None:
+            return jsonify({"error": f"Personnage avec l'ID '{cid}' introuvable."}), 404
+
+        # Définir l'action pour le personnage
+        if action == "HIT":
+            character.setAction(ACTION.HIT)
+        elif action == "BLOCK":
+            character.setAction(ACTION.BLOCK)
+        elif action == "DODGE":
+            character.setAction(ACTION.DODGE)
+        elif action == "FLY":
+            character.setAction(ACTION.FLY)
+
+        # Retourner une réponse de succès
+        return jsonify({"message": f"Le personnage '{cid}' a choisi l'action '{action}'."}), 200
+
+    except Exception as e:
+        # Gérer les erreurs
+        return jsonify({"error": str(e)}), 500
 
 # Démarrer le serveur
 if __name__ == '__main__':
