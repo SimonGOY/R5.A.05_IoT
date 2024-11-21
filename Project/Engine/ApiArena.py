@@ -14,66 +14,74 @@ app = Flask(__name__)
 def index():
     return "Home page"
 
-# ---------------------------------- Routes prof ----------------------------------
+# ---------------------------------- Routes ----------------------------------
 
-# - GET - /character/id/ - récupérer un personnages - cid
-@app.route('/character/<character_id>', methods=['GET'])
-def get_character(character_id):
-    arena = Arena(engine._arena)
-    characters = arena._playersList
-    for character in characters:
-        if character.isId(character_id):
-            return jsonify(character, 200)
-    return jsonify({"error": "Personnage non trouvé"}), 404
+@app.route('/join', methods=['POST'])
+def join_arena():
+    """Crée un personnage et l'ajoute directement à l'arène."""
+    data = request.json  # Récupérer les données JSON envoyées dans la requête
 
-# - GET - /characters/ - récupéré les personnages d'une arène
-@app.route('/characters/', methods=['GET'])
+    # Vérifier que toutes les statistiques nécessaires sont présentes
+    required_fields = ["cid", "teamid", "life", "strength", "armor", "speed"]
+    if not all(field in data for field in required_fields):
+        return jsonify({"error": "Les statistiques du personnage sont incomplètes."}), 400
+
+    # Extraire les données du personnage
+    cid = data["cid"]
+    teamid = data["teamid"]
+    life = data["life"]
+    strength = data["strength"]
+    armor = data["armor"]
+    speed = data["speed"]
+
+    # Vérifier que la somme des statistiques est inférieure ou égale à 20
+    if strength + speed + life + armor > 20:
+        return jsonify({"error": "La somme des statistiques ne peut pas dépasser 20."}), 400
+    if speed > 10:
+        return jsonify({"error": "La vitesse ne peut pas dépasser 10."}), 400
+
+    # Créer le personnage
+    try:
+        # Créer le personnage avec les caractéristiques données
+        character = CharacterProxy(cid, teamid, life, strength, armor, speed)
+        
+        # Ajouter le personnage à l'arène via l'Engine
+        engine.addPlayer(character, request.remote_addr)
+        
+        # Retourner une réponse de succès
+        return jsonify({"message": f"Le personnage '{cid}' a été créé et ajouté à l'arène avec succès."}), 201
+    except Exception as e:
+        # Gérer les erreurs
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/characters', methods=['GET'])
 def get_characters():
-    arena = Arena(engine._arena)
-    return jsonify(arena._playersList,200)
+    """Renvoie tous les IDs des personnages présents dans l'arène."""
+    try:
+        # Extraire les IDs des personnages depuis l'arène via `engine`
+        character_ids = [character.getId() for character in engine._arena._playersList]
+        return jsonify({"characters": character_ids}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-# # - POST - /character/join/ - ajouter un personnage à une arène - cid, teamid, life, strength, armor, speed
-@app.route('/character/join', methods=['POST'])
-def join_character():
-    character_id = request.json.get('characterId')
+@app.route('/character/<cid>', methods=['GET'])
+def get_character(cid):
+    """Renvoie les statistiques d'un joueur donné à partir de son ID."""
+    try:
+        # Chercher le personnage dans l'arène via son ID
+        character = next((char for char in engine._arena._playersList if char.isId(cid)), None)
+        
+        if character is None:
+            return jsonify({"error": f"Personnage avec l'ID '{cid}' introuvable."}), 404
 
-    for characters in engine._arena._playersList:
-        if character in characters:
-            character = get_character(character_id)
-            _ = http.client.HTTPSConnection("ADDRESS").request("POST", "/character/join", character)
-            engine._arena.removePlayer(character)
-            return jsonify({"message": "Personnage server switch"}), 200
+        # Retourner les statistiques du personnage
+        return jsonify(character.toDict()), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     
-    character = CharacterProxy(character_id, request.json.get('teamId'), request.json.get('life'), request.json.get('strength'), request.json.get('armor'), request.json.get('speed'))
-    engine._arena.addPlayer(character)
-    return jsonify({"message": "Personnage ajouté"}), 200
-
-#- POST - /character/<character_id>/action/<action_id>/target - ajouter une action à un personnage - cid, action, target
-@app.route('/character/action/<character_id>/<action_id>/<target_id>', methods=['GET'])
-def action_character(character_id,action_id,target_id):
-    dataCharacters = get_character(character_id)
-    dataTarget = get_character(target_id)
-    character = CharacterProxy(character_id, dataCharacters["teamId"], dataCharacters["life"], dataCharacters["strength"], dataCharacters["armor"], dataCharacters["speed"])
-    target = CharacterProxy(target_id, dataTarget["teamId"], dataTarget["life"], dataTarget["strength"], dataTarget["armor"], dataTarget["speed"])
-    if(target):
-        character.setTarget(target.getId())
-    if action_id == actionToStr(ACTION.HIT):
-        character.setAction(ACTION.HIT)
-        return jsonify({"message": "Personnage ajouté"}), 200
-    elif action_id == actionToStr(ACTION.BLOCK):
-        character.setAction(ACTION.BLOCK)
-        return jsonify({"message": "Personnage ajouté"}), 200
-    elif action_id == actionToStr(ACTION.DODGE):
-        character.setAction(ACTION.DODGE)
-        return jsonify({"message": "Personnage ajouté"}), 200
-    elif action_id == actionToStr(ACTION.FLY):
-        character.setAction(ACTION.FLY)
-        return jsonify({"message": "Personnage ajouté"}), 200
-    else:
-        return jsonify({"error": "Action non trouvée"}), 404
 
 # Démarrer le serveur
 if __name__ == '__main__':
     engine = Engine()
-    app.run(debug=True)
+    app.run(host="0.0.0.0",debug=True)
     engine.run()
