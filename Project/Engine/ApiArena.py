@@ -157,6 +157,46 @@ def set_action():
         # Gérer les erreurs
         return jsonify({"error": str(e)}), 500
 
+@app.route('/status', methods=['GET'])
+def get_status():
+    """Récupérer les résultats d'un match pour un tour spécifique."""
+    try:
+        # Récupérer le numéro de tour à partir des paramètres de la requête
+        turn_number = request.args.get('turn_number', type=int)
+
+        # Vérifier si un tour est spécifié
+        if turn_number is None:
+            return jsonify({"error": "Le numéro du tour est requis."}), 400
+
+        # Vérifier si le tour spécifié existe dans l'historique de l'arène
+        if turn_number not in engine._history:
+            return jsonify({"error": f"Le tour {turn_number} n'existe pas."}), 404
+
+        # Récupérer l'état de l'arène pour ce tour spécifique
+        arena_state = engine._history[turn_number]
+        
+        # Retourner l'état de l'arène sous forme JSON
+        return jsonify(arena_state), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/start', methods=['POST'])
+def start_game():
+    """Démarrer le moteur de jeu."""
+    try:
+        # Vérifier si le moteur de jeu est déjà en cours
+        if engine.isRunning():
+            return jsonify({"error": "Le jeu est déjà en cours."}), 400
+        
+        # Lancer le moteur de jeu
+        engine.run()  # Appel à la méthode run() pour démarrer le jeu
+
+        return jsonify({"message": "Le jeu a démarré avec succès."}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # Démarrer le serveur
 if __name__ == '__main__':
     engine = Engine()
