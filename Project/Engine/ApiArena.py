@@ -5,6 +5,8 @@ from engine import *
 from arena import *
 from http import *
 import http.client
+import threading
+import requests
 
 
 app = Flask(__name__)
@@ -44,7 +46,7 @@ def join_arena():
     try:
         # Créer le personnage avec les caractéristiques données
         character = CharacterProxy(cid, teamid, life, strength, armor, speed)
-        
+        print(character)
         # Ajouter le personnage à l'arène via l'Engine
         engine.addPlayer(character, request.remote_addr)
         
@@ -105,7 +107,10 @@ def set_target():
             return jsonify({"error": f"Personnage avec l'ID '{target_id}' introuvable."}), 404
 
         # Définir la cible pour le personnage
-        character.setTarget(target)
+        character.setTarget(target_id)
+
+        # Appliquer la mise à jour dans l'arène
+        engine.setTargetTo(cid, target_id)
 
         # Retourner une réponse de succès
         return jsonify({"message": f"Le personnage '{cid}' a maintenant '{target_id}' comme cible."}), 200
@@ -113,6 +118,7 @@ def set_target():
     except Exception as e:
         # Gérer les erreurs
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route('/set_action', methods=['POST'])
@@ -150,6 +156,9 @@ def set_action():
         elif action == "FLY":
             character.setAction(ACTION.FLY)
 
+        # Appliquer l'action et mettre à jour l'état du personnage
+        engine.setActionTo(cid, character.getAction())
+
         # Retourner une réponse de succès
         return jsonify({"message": f"Le personnage '{cid}' a choisi l'action '{action}'."}), 200
 
@@ -180,8 +189,14 @@ def get_status():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-@app.route('/start', methods=['POST'])
+    
+@app.route('/history')
+def history():
+    try:     
+        return(engine._history[engine._turnId] )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+@app.route('/start')
 def start_game():
     """Démarrer le moteur de jeu."""
     try:
@@ -190,15 +205,51 @@ def start_game():
             return jsonify({"error": "Le jeu est déjà en cours."}), 400
         
         # Lancer le moteur de jeu
-        engine.run()  # Appel à la méthode run() pour démarrer le jeu
+        x = threading.Thread(target=run_game)
+        x.start()
 
         return jsonify({"message": "Le jeu a démarré avec succès."}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Démarrer le serveur
+
+def run_game():
+    while not engine.isReadyToStart():
+        time.sleep(1)
+    try:
+        engine.run()
+    except Exception as e:
+        print(str(e))
+# ----------------------------------- Démarrage ----------------------------------
+
+def add_default_character():
+    """Ajoute un personnage par défaut à l'arène."""
+    character_data = {
+        "cid": "Default-Agent",
+        "teamid": "Team A",
+        "life": 8,
+        "strength": 5,
+        "armor": 4,
+        "speed": 3
+    }
+
+    url = "http://localhost:5000/join"
+    try:
+        # Envoie une requête POST pour ajouter le personnage
+        response = requests.post(url, json=character_data)
+        if response.status_code == 201:
+            print(f"Personnage '{character_data['cid']}' ajouté avec succès.")
+        else:
+            print(f"Erreur lors de l'ajout du personnage : {response.json()}")
+    except Exception as e:
+        print(f"Impossible d'ajouter le personnage par défaut : {str(e)}")
+
 if __name__ == '__main__':
+    # Initialise le moteur
     engine = Engine()
+
+    # Lancer le serveur Flask dans un thread pour permettre les requêtes HTTP
     app.run(host="0.0.0.0",debug=True)
-    engine.run()
+
+
