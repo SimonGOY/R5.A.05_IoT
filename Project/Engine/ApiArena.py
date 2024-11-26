@@ -187,64 +187,7 @@ def set_action():
         # Gérer les erreurs
         return jsonify({"error": str(e)}), 500
 
-@app.route('/add_random_characters')
-def add_random_characters():
-    """Ajoute 5 personnages avec des statistiques aléatoires à l'arène."""
-    try:
-        characters_added = []
-        for i in range(5):
-            # Générer un ID unique pour chaque personnage
-            cid = f"Random-{i+1}"
-
-            # Générer les statistiques aléatoires
-            stats = {"life": 0, "strength": 0, "armor": 0, "speed": 0}
-            remaining_points = 20
-
-            for stat in stats:
-                if stat == "speed":
-                    # Limiter la vitesse à un maximum de 10
-                    max_value = min(10, remaining_points)
-                else:
-                    max_value = remaining_points
-
-                # Répartir aléatoirement les points restants
-                value = random.randint(0, max_value)
-                stats[stat] = value
-                remaining_points -= value
-
-            # Générer un `teamid` aléatoire (par exemple, "Team A" ou "Team B")
-            teamid = f"Team {random.choice(['A', 'B'])}"
-
-            # Créer les données du personnage
-            character_data = {
-                "cid": cid,
-                "teamid": teamid,
-                "life": stats["life"],
-                "strength": stats["strength"],
-                "armor": stats["armor"],
-                "speed": stats["speed"]
-            }
-
-            # Ajouter le personnage via l'API /join
-            response = requests.post("http://localhost:5000/join", json=character_data)
-
-            if response.status_code == 201:
-                characters_added.append(character_data)
-            else:
-                return jsonify({
-                    "error": f"Échec lors de l'ajout du personnage '{cid}'.",
-                    "details": response.json()
-                }), 500
-
-        return jsonify({
-            "message": "5 personnages aléatoires ont été ajoutés avec succès.",
-            "characters": characters_added
-        }), 201
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
     
-
 @app.route('/start')
 def start_game():
     """Démarrer le moteur de jeu."""
