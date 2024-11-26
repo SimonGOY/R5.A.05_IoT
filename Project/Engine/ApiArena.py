@@ -8,6 +8,9 @@ import http.client
 import threading
 import requests
 import random
+from prometheus_client import Counter, Gauge, Histogram, generate_latest
+import prometheus_client
+from prometheus_flask_exporter import PrometheusMetrics
 
 
 app = Flask(__name__)
@@ -18,6 +21,28 @@ def index():
     return "Home page"
 
 # ---------------------------------- Routes ----------------------------------
+
+# Créer des métriques
+total_characters = Counter('total_characters', 'Nombre total de personnages ajoutés')
+active_games = Gauge('active_games', 'Nombre de jeux actifs')
+turn_duration = Histogram('turn_duration', 'Durée des tours', buckets=[0.1, 0.5, 1, 2, 5, 10])
+
+# Initialiser PrometheusMetrics
+metrics = PrometheusMetrics(app)
+
+# Configurez les métriques de requêtes HTTP
+metrics.register_default(
+    metrics.counter('http_requests_total', 'Total HTTP requests', labels={'method': lambda: request.method, 'endpoint': lambda: request.path})
+)
+
+@app.route('/metrics')
+def metrics():
+    """Exposer les métriques Prometheus."""
+    return generate_latest(), 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
+@app.route('/metrics_test')
+def metrics_test():
+    return jsonify({"message": "This is a test for metrics!"})
 
 @app.route('/join', methods=['POST'])
 def join_arena():
@@ -50,6 +75,8 @@ def join_arena():
         print(character)
         # Ajouter le personnage à l'arène via l'Engine
         engine.addPlayer(character, request.remote_addr)
+
+        total_characters.inc()
         
         # Retourner une réponse de succès
         return jsonify({"message": f"Le personnage '{cid}' a été créé et ajouté à l'arène avec succès."}), 201
@@ -191,13 +218,10 @@ def get_status():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-@app.route('/history')
-def history():
-    try:     
-        return(engine._history[engine._turnId] )
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Vérification de l'état de santé du service."""
+    return jsonify({"status": "ok"}), 200
 @app.route('/start')
 def start_game():
     """Démarrer le moteur de jeu."""
@@ -214,8 +238,6 @@ def start_game():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-import random
 
 @app.route('/add_random_characters')
 def add_random_characters():
@@ -275,7 +297,6 @@ def add_random_characters():
         return jsonify({"error": str(e)}), 500
 
 
-
 def run_game():
     while not engine.isReadyToStart():
         time.sleep(1)
@@ -285,27 +306,6 @@ def run_game():
         print(str(e))
 # ----------------------------------- Démarrage ----------------------------------
 
-def add_default_character():
-    """Ajoute un personnage par défaut à l'arène."""
-    character_data = {
-        "cid": "Default-Agent",
-        "teamid": "Team A",
-        "life": 8,
-        "strength": 5,
-        "armor": 4,
-        "speed": 3
-    }
-
-    url = "http://localhost:5000/join"
-    try:
-        # Envoie une requête POST pour ajouter le personnage
-        response = requests.post(url, json=character_data)
-        if response.status_code == 201:
-            print(f"Personnage '{character_data['cid']}' ajouté avec succès.")
-        else:
-            print(f"Erreur lors de l'ajout du personnage : {response.json()}")
-    except Exception as e:
-        print(f"Impossible d'ajouter le personnage par défaut : {str(e)}")
 
 if __name__ == '__main__':
     # Initialise le moteur
@@ -313,5 +313,3 @@ if __name__ == '__main__':
 
     # Lancer le serveur Flask dans un thread pour permettre les requêtes HTTP
     app.run(host="0.0.0.0",debug=True)
-
-
