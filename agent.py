@@ -12,14 +12,50 @@ class SimpleAgent:
         """Choisir une action aléatoire pour l'instant."""
         return random.choice(["HIT"])
 
+    def get_alive_characters(self, characters):
+        """Récupérer la liste des personnages vivants."""
+        alive_characters = []
+        for character_id in characters:
+            try:
+                response = requests.get(f"{self.engine_url}/character/{character_id}")
+                if response.status_code == 200:
+                    character_data = response.json()
+                    if not character_data.get("dead", False):  # Si le personnage n'est pas mort
+                        alive_characters.append(character_id)
+                else:
+                    print(f"Erreur lors de la récupération des infos du personnage {character_id}: {response.text}")
+            except Exception as e:
+                print(f"Erreur pour vérifier si {character_id} est vivant : {e}")
+        return alive_characters
+
     def choose_target(self, characters):
-        """Choisir une cible aléatoire."""
-        if characters:
-            return random.choice(characters)
+        """Choisir une cible aléatoire parmi les personnages vivants."""
+        alive_characters = self.get_alive_characters(characters)
+        if alive_characters:
+            return random.choice(alive_characters)
         return None
 
+    def is_alive(self):
+        """Vérifie si l'agent est vivant en consultant l'API."""
+        try:
+            response = requests.get(f"{self.engine_url}/character/{self.cid}")
+            if response.status_code == 200:
+                character = response.json()
+                if character.get("dead", False):
+                    print(f"Agent {self.cid} est mort et ne peut pas jouer.")
+                    return False
+                return True
+            else:
+                return False
+        except Exception as e:
+            print(f"Erreur lors de la vérification de l'état de l'agent {self.cid}: {e}")
+            return False
+
     def play_turn(self):
-        """Envoyer l'action et la cible à l'API distante."""
+        """Envoyer l'action et la cible à l'API distante, si l'agent est vivant."""
+        if not self.is_alive():
+            return  # Si l'agent est mort, ne pas jouer
+
         try:
             # Récupérer la liste des personnages disponibles
             response = requests.get(f"{self.engine_url}/characters")
@@ -28,30 +64,30 @@ class SimpleAgent:
                 if self.cid in characters:
                     characters.remove(self.cid)  # Ne pas cibler soi-même
 
-            # Choisir une action et une cible
-            action = self.choose_action()
-            target = self.choose_target(characters)
+                # Choisir une action et une cible
+                action = self.choose_action()
+                target = self.choose_target(characters)
 
-            # Définir la cible
-            if target:
-                target_response = requests.post(f"{self.engine_url}/set_target", json={
+                # Définir la cible
+                if target:
+                    target_response = requests.post(f"{self.engine_url}/set_target", json={
+                        "cid": self.cid,
+                        "target_id": target
+                    })
+                    if target_response.status_code == 200:
+                        print(f"Agent {self.cid} a ciblé {target}.")
+                    else:
+                        print(f"Erreur lors du ciblage pour {self.cid} vers {target}: {target_response.text}")
+
+                # Définir l'action
+                action_response = requests.post(f"{self.engine_url}/set_action", json={
                     "cid": self.cid,
-                    "target_id": target
+                    "action": action
                 })
-                if target_response.status_code == 200:
-                    print(f"Agent {self.cid} a ciblé {target}.")
+                if action_response.status_code == 200:
+                    print(f"Agent {self.cid} a choisi l'action {action}.")
                 else:
-                    print(f"Erreur lors du ciblage pour {self.cid} vers {target}: {target_response.text}")
-
-            # Définir l'action
-            action_response = requests.post(f"{self.engine_url}/set_action", json={
-                "cid": self.cid,
-                "action": action
-            })
-            if action_response.status_code == 200:
-                print(f"Agent {self.cid} a choisi l'action {action}.")
-            else:
-                print(f"Erreur lors de l'action pour {self.cid}: {action_response.text}")
+                    print(f"Erreur lors de l'action pour {self.cid}: {action_response.text}")
 
         except Exception as e:
             print(f"Erreur pour l'agent {self.cid} : {e}")
@@ -60,7 +96,7 @@ class SimpleAgent:
         """Exécuter les tours pour l'agent."""
         while True:
             self.play_turn()
-            time.sleep(1)  # Temps d'attente avant le prochain tour
+            time.sleep(5)  # Temps d'attente avant le prochain tour
 
 
 def start_agents_for_available_characters(engine_url):
@@ -94,5 +130,5 @@ def start_agents_for_available_characters(engine_url):
 
 # Exemple d'initialisation et démarrage des agents automatiquement
 if __name__ == "__main__":
-    engine_url = "http://10.109.110.16:5000"  # L'URL de ton serveur API distant (par exemple: http://127.0.0.1:5000)
+    engine_url = "http://10.109.111.12:5000"  # L'URL de ton serveur API distant (par exemple: http://127.0.0.1:5000)
     start_agents_for_available_characters(engine_url)
