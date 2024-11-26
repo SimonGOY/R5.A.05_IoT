@@ -108,7 +108,27 @@ def get_character(cid):
         return jsonify(character.toDict()), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
+
+@app.route('/active_players', methods=['GET'])
+def get_active_players():
+    """Récupère la liste des joueurs actifs dans l'arène."""
+    try:
+        active_players = engine._arena.getActiveNbPlayer()
+        return jsonify({"active_players": active_players}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500   
+
+@app.route('/is_ready_for_next_turn', methods=['GET'])
+def is_ready_for_next_turn():
+    """Vérifie si tous les joueurs sont prêts pour un nouveau tour."""
+    try:
+        if engine.isReady():
+            return jsonify({"message": "Tous les joueurs sont prêts pour le prochain tour."}), 200
+        else:
+            return jsonify({"error": "Tous les joueurs ne sont pas prêts."}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/set_target', methods=['POST'])
 def set_target():
     """Permet à un personnage de choisir une cible."""
@@ -194,26 +214,59 @@ def set_action():
         # Gérer les erreurs
         return jsonify({"error": str(e)}), 500
 
-@app.route('/status', methods=['GET'])
-def get_status():
-    """Récupérer les résultats d'un match pour un tour spécifique."""
+@app.route('/add_random_characters')
+def add_random_characters():
+    """Ajoute 5 personnages avec des statistiques aléatoires à l'arène."""
     try:
-        # Récupérer le numéro de tour à partir des paramètres de la requête
-        turn_number = request.args.get('turn_number', type=int)
+        characters_added = []
+        for i in range(5):
+            # Générer un ID unique pour chaque personnage
+            cid = f"Random-{i+1}"
 
-        # Vérifier si un tour est spécifié
-        if turn_number is None:
-            return jsonify({"error": "Le numéro du tour est requis."}), 400
+            # Générer les statistiques aléatoires
+            stats = {"life": 0, "strength": 0, "armor": 0, "speed": 0}
+            remaining_points = 20
 
-        # Vérifier si le tour spécifié existe dans l'historique de l'arène
-        if turn_number not in engine._history:
-            return jsonify({"error": f"Le tour {turn_number} n'existe pas."}), 404
+            for stat in stats:
+                if stat == "speed":
+                    # Limiter la vitesse à un maximum de 10
+                    max_value = min(10, remaining_points)
+                else:
+                    max_value = remaining_points
 
-        # Récupérer l'état de l'arène pour ce tour spécifique
-        arena_state = engine._history[turn_number]
-        
-        # Retourner l'état de l'arène sous forme JSON
-        return jsonify(arena_state), 200
+                # Répartir aléatoirement les points restants
+                value = random.randint(0, max_value)
+                stats[stat] = value
+                remaining_points -= value
+
+            # Générer un `teamid` aléatoire (par exemple, "Team A" ou "Team B")
+            teamid = f"Team {random.choice(['A', 'B'])}"
+
+            # Créer les données du personnage
+            character_data = {
+                "cid": cid,
+                "teamid": teamid,
+                "life": stats["life"],
+                "strength": stats["strength"],
+                "armor": stats["armor"],
+                "speed": stats["speed"]
+            }
+
+            # Ajouter le personnage via l'API /join
+            response = requests.post("http://localhost:5000/join", json=character_data)
+
+            if response.status_code == 201:
+                characters_added.append(character_data)
+            else:
+                return jsonify({
+                    "error": f"Échec lors de l'ajout du personnage '{cid}'.",
+                    "details": response.json()
+                }), 500
+
+        return jsonify({
+            "message": "5 personnages aléatoires ont été ajoutés avec succès.",
+            "characters": characters_added
+        }), 201
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -301,11 +354,11 @@ def run_game():
     while not engine.isReadyToStart():
         time.sleep(1)
     try:
-        engine.run()
+        if engine.isReady():
+            engine.run()
     except Exception as e:
         print(str(e))
 # ----------------------------------- Démarrage ----------------------------------
-
 
 if __name__ == '__main__':
     # Initialise le moteur
