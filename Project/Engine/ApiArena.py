@@ -298,6 +298,34 @@ def add_random_characters():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/leave', methods=['DELETE'])
+def leave_arena():
+    """Supprime un personnage de l'arène."""
+    data = request.json  # Récupérer les données JSON envoyées dans la requête
+
+    # Vérifier que le cid est bien présent dans la requête
+    if "cid" not in data:
+        return jsonify({"error": "Le 'cid' du personnage est manquant."}), 400
+
+    # Extraire le cid du personnage
+    cid = data["cid"]
+
+    try:
+        # Vérifier si le personnage existe (par exemple, via l'Engine ou la base de données)
+        character = engine.getPlayerByName(cid)  
+        if not character:
+            return jsonify({"error": f"Le personnage '{cid}' n'existe pas."}), 404
+        
+        # Supprimer le personnage de l'arène
+        engine._arena.removePlayer(cid)  
+        
+        total_characters.dec()  
+
+        # Retourner une réponse de succès
+        return jsonify({"message": f"Le personnage '{cid}' a été supprimé de l'arène avec succès."}), 200
+    except Exception as e:
+        # Gérer les erreurs
+        return jsonify({"error": str(e)}), 500
 
 def run_game():
     while not engine.isReadyToStart():

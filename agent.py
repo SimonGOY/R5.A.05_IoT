@@ -75,6 +75,7 @@ class SimpleAgent:
                 join_response = requests.post(f"{new_url}/join", json=agent_data)
                 if join_response.status_code == 200:
                     print(f"L'agent {self.cid} a rejoint la nouvelle URL {new_url}.")
+                    requests.delete(f"{self.current_url}/character/{self.cid}")
                     self.current_url = new_url  # Mettre à jour l'URL actuelle de l'agent
                 else:
                     print(f"Erreur lors du déplacement de {self.cid} vers {new_url}: {join_response.text}")
@@ -101,6 +102,7 @@ class SimpleAgent:
                 # Choisir une action et une cible
                 action = self.choose_action()
                 if action == "FLY":
+                    print(f"Agent {self.cid} a choisi l'action {action}.")
                     self.fly_to_another_url()
                 else:
                     target = self.choose_target(characters)
@@ -125,6 +127,7 @@ class SimpleAgent:
                         print(f"Agent {self.cid} a choisi l'action {action}.")
                     else:
                         print(f"Erreur lors de l'action pour {self.cid}: {action_response.text}")
+            print("------------------------------------------")
 
         except Exception as e:
             print(f"Erreur pour l'agent {self.cid} : {e}")
@@ -167,7 +170,7 @@ def start_agents_for_available_characters(engine_url, available_urls):
 
 available_urls = [
     "http://10.109.111.11:5000",  
-
+    "http://10.109.111.12:5000"
     # Ajoutez autant d'URLs que nécessaire
 ]
 
