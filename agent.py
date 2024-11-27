@@ -136,7 +136,6 @@ class SimpleAgent:
                             print(f"Agent {self.cid} a ciblé {target}.")
                         else:
                             print(f"Erreur lors du ciblage pour {self.cid} vers {target}: {target_response.text}")
-
                         # Définir l'action
                         action_response = requests.post(f"{self.engine_url}/set_action", json={
                             "cid": self.cid,
@@ -148,7 +147,6 @@ class SimpleAgent:
                             print(f"Erreur lors de l'action pour {self.cid}: {action_response.text}")
                     else:
                         print(f"L'agent {self.cid} n'a trouvé aucune cible valide.")
-                print("------------------------------------------")
 
         except Exception as e:
             print(f"Erreur pour l'agent {self.cid} : {e}")
