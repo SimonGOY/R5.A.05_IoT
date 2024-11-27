@@ -22,12 +22,17 @@ action_lock = Lock()
 def index():
     return "Home page"
 
-# ---------------------------------- Routes ----------------------------------
-
+# ---------------------------------- Metrics ----------------------------------
 # Créer des métriques
 total_characters = Counter('total_characters', 'Nombre total de personnages ajoutés')
 active_games = Gauge('active_games', 'Nombre de jeux actifs')
 turn_duration = Histogram('turn_duration', 'Durée des tours', buckets=[0.1, 0.5, 1, 2, 5, 10])
+
+# Metrics pour les personnages
+character_life = Gauge('character_life', 'Vie des personnages', ['cid', 'teamid'])
+character_strength = Gauge('character_strength', 'Force des personnages', ['cid', 'teamid'])
+character_armor = Gauge('character_armor', 'Armure des personnages', ['cid', 'teamid'])
+character_speed = Gauge('character_speed', 'Vitesse des personnages', ['cid', 'teamid'])
 
 # Initialiser PrometheusMetrics
 metrics = PrometheusMetrics(app)
@@ -38,13 +43,22 @@ metrics.register_default(
 )
 
 @app.route('/metrics')
-def metrics():
+def metrics_endpoint():
     """Exposer les métriques Prometheus."""
     return generate_latest(), 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
-@app.route('/metrics_test')
-def metrics_test():
-    return jsonify({"message": "This is a test for metrics!"})
+# --------------------------------- Utility Functions -------------------------
+def update_character_metrics():
+    """Met à jour les métriques des personnages."""
+    for character in engine._arena._playersList:
+        cid = character.getId()
+        teamid = character._teamid
+        character_life.labels(cid=cid, teamid=teamid).set(character.getLife())
+        character_strength.labels(cid=cid, teamid=teamid).set(character.getStrength())
+        character_armor.labels(cid=cid, teamid=teamid).set(character.getArmor())
+        character_speed.labels(cid=cid, teamid=teamid).set(character.getSpeed())
+
+# ---------------------------------- Routes ----------------------------------
 
 @app.route('/join', methods=['POST'])
 def join_arena():
@@ -79,6 +93,7 @@ def join_arena():
         engine.addPlayer(character, request.remote_addr)
 
         total_characters.inc()
+        update_character_metrics()
         
         # Retourner une réponse de succès
         return jsonify({"message": f"Le personnage '{cid}' a été créé et ajouté à l'arène avec succès."}), 201
@@ -304,7 +319,13 @@ def run_game():
         time.sleep(1)
     try:
         if engine.isReady():
-            engine.run()
+            while engine.isRunning():
+                # Mettez à jour les métriques à chaque tour
+                update_character_metrics()
+                
+                # Exécuter le tour du jeu
+                engine.run()
+                time.sleep(1)  # Temps entre chaque tour
     except Exception as e:
         print(str(e))
 # ----------------------------------- Démarrage ----------------------------------

@@ -173,5 +173,5 @@ available_urls = [
 
 # Exemple d'initialisation et démarrage des agents automatiquement
 if __name__ == "__main__":
-    engine_url = "http://10.109.111.12:5000"  # L'URL de ton serveur API distant (par exemple: http://127.0.0.1:5000)
+    engine_url = "http://10.109.111.11:5000"  # L'URL de ton serveur API distant (par exemple: http://127.0.0.1:5000)
     start_agents_for_available_characters(engine_url, available_urls)

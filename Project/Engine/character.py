@@ -43,7 +43,7 @@ class CharacterProxy:
 
     def setLife(self, value):
         self._life = value
-        if self._life <= 0:
+        if value <= 0:
             self._dead = True
 
     def setStrength(self, value):
