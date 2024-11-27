@@ -157,7 +157,7 @@ class SimpleAgent:
         """Exécuter les tours pour l'agent."""
         while True:
             self.play_turn()
-            time.sleep(15)  # Temps d'attente avant le prochain tour
+            time.sleep(3)  # Temps d'attente avant le prochain tour
 
 
 def start_agents_for_available_characters(engine_url, available_urls):
