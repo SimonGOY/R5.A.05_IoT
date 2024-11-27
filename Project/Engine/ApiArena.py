@@ -108,6 +108,10 @@ def join_arena():
         # Gérer les erreurs
         return jsonify({"error": str(e)}), 500
 
+    finally:
+        # Libérer le verrou après avoir traité l'action
+        action_lock.release()
+
 @app.route('/characters', methods=['GET'])
 def get_characters():
     """Renvoie tous les IDs des personnages présents dans l'arène."""
