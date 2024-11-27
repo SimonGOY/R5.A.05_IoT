@@ -67,12 +67,12 @@ class Arena:
                 self._data.addData("leave_arena", character.toDict())
                 break
 
-    def removeAfkPlayers(self):
-        for i in reversed(range(len(self._playersList))):
-            cAction, cTarget = self._playersList[i].getAction()
-            if cAction is None:
-                self._data.addData("leave_arena", self._playersList[i].toDict())
-                del self._playersList[i]
+    # def removeAfkPlayers(self):
+    #     for i in reversed(range(len(self._playersList))):
+    #         cAction, cTarget = self._playersList[i].getAction()
+    #         if cAction is None:
+    #             self._data.addData("leave_arena", self._playersList[i].toDict())
+    #             del self._playersList[i]
 
     def everyoneHasAnAction(self):
         for character in self._playersList:
