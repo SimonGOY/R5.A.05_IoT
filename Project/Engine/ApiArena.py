@@ -62,7 +62,6 @@ def update_character_metrics():
         character_strength.labels(cid=cid, teamid=teamid).set(character.getStrength())
         character_armor.labels(cid=cid, teamid=teamid).set(character.getArmor())
         character_speed.labels(cid=cid, teamid=teamid).set(character.getSpeed())
-        print("Je passe bien là")
 
 # ---------------------------------- Routes ----------------------------------
 
