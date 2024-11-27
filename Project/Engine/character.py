@@ -42,8 +42,9 @@ class CharacterProxy:
         return self._action, None
 
     def setLife(self, value):
+        print(f"Setting life for {self._id} from {self._life} to {value}")
         self._life = value
-        if value <= 0:
+        if self._life <= 0:
             self._dead = True
 
     def setStrength(self, value):

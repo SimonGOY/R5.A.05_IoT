@@ -11,11 +11,8 @@ import random
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 import prometheus_client
 from prometheus_flask_exporter import PrometheusMetrics
-from threading import Lock
-
 
 app = Flask(__name__)
-action_lock = Lock()
 
 # Fonctions utilitaires
 @app.route('/')
@@ -44,19 +41,26 @@ metrics.register_default(
 
 @app.route('/metrics')
 def metrics_endpoint():
+    update_character_metrics()
     """Exposer les métriques Prometheus."""
     return generate_latest(), 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 # --------------------------------- Utility Functions -------------------------
 def update_character_metrics():
-    """Met à jour les métriques des personnages."""
-    for character in engine._arena._playersList:
+    """Met à jour les métriques des personnages, et ignore celles des personnages morts."""
+    active_characters = engine._arena._playersList  # Liste des personnages actifs
+
+    # Parcourir tous les personnages dans l'arène
+    for character in active_characters:
         cid = character.getId()
         teamid = character._teamid
+
+        # Mettre à jour les métriques pour les personnages vivants
         character_life.labels(cid=cid, teamid=teamid).set(character.getLife())
         character_strength.labels(cid=cid, teamid=teamid).set(character.getStrength())
         character_armor.labels(cid=cid, teamid=teamid).set(character.getArmor())
         character_speed.labels(cid=cid, teamid=teamid).set(character.getSpeed())
+        print("Je passe bien là")
 
 # ---------------------------------- Routes ----------------------------------
 
@@ -190,8 +194,6 @@ def set_target():
 def set_action():
     """Permet à un personnage de définir une action."""
     try:
-        # Acquérir le verrou avant de traiter l'action
-        action_lock.acquire()
 
         # Récupérer les données du joueur et de l'action depuis la requête
         data = request.json
@@ -234,9 +236,6 @@ def set_action():
         # Gérer les erreurs
         return jsonify({"error": str(e)}), 500
 
-    finally:
-        # Libérer le verrou après avoir traité l'action
-        action_lock.release()
 
     
 @app.route('/start')
@@ -246,15 +245,18 @@ def start_game():
         # Vérifier si le moteur de jeu est déjà en cours
         if engine.isRunning():
             return jsonify({"error": "Le jeu est déjà en cours."}), 400
-        
-        # Lancer le moteur de jeu
+
+        # Ajouter un log avant de démarrer le thread
+        print("Démarrage du jeu dans un thread séparé")
         x = threading.Thread(target=run_game)
         x.start()
 
         return jsonify({"message": "Le jeu a démarré avec succès."}), 200
 
     except Exception as e:
+        print(f"Erreur lors du démarrage du jeu : {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/stop')
 def stop_game():
@@ -275,13 +277,19 @@ def add_random_characters():
         characters_added = []
         for i in range(5):
             # Générer un ID unique pour chaque personnage
-            cid = f"Random-{randint(1,500)}"
+            cid = f"Random-{random.randint(1, 500)}"
 
             # Générer les statistiques aléatoires
             stats = {"life": 0, "strength": 0, "armor": 0, "speed": 0}
             remaining_points = 20
 
+            stats["life"] = random.randint(1, 19)
+            remaining_points -= stats["life"]
+
             for stat in stats:
+                if stat == "life":
+                    continue  # Ne pas modifier la vie puisque nous l'avons déjà définie
+
                 if stat == "speed":
                     # Limiter la vitesse à un maximum de 10
                     max_value = min(10, remaining_points)
@@ -357,15 +365,12 @@ def run_game():
         time.sleep(1)
     try:
         if engine.isReady():
-            while engine.isRunning():
-                # Mettez à jour les métriques à chaque tour
-                update_character_metrics()
-                
-                # Exécuter le tour du jeu
+            if not engine.isRunning():
                 engine.run()
-                time.sleep(1)  # Temps entre chaque tour
+
     except Exception as e:
-        print(str(e))
+        print(f"Erreur dans run_game : {str(e)}")
+
 # ----------------------------------- Démarrage ----------------------------------
 
 if __name__ == '__main__':
