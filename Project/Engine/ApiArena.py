@@ -11,8 +11,11 @@ import random
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 import prometheus_client
 from prometheus_flask_exporter import PrometheusMetrics
+from threading import Lock
+
 
 app = Flask(__name__)
+action_lock = Lock()
 
 # Fonctions utilitaires
 @app.route('/')
@@ -194,6 +197,8 @@ def set_target():
 def set_action():
     """Permet à un personnage de définir une action."""
     try:
+        # Acquérir le verrou avant de traiter l'action
+        action_lock.acquire()
 
         # Récupérer les données du joueur et de l'action depuis la requête
         data = request.json
