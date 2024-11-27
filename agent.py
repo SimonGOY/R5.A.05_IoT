@@ -12,7 +12,7 @@ class SimpleAgent:
 
     def choose_action(self):
         """Choisir une action aléatoire pour l'instant."""
-        return random.choice(["HIT", "BLOCK", "DODGE"])
+        return random.choice(["FLY", "DODGE", "HIT", "BLOCK"])
 
     def choose_target(self, characters):
         """Choisir une cible aléatoire parmi les personnages vivants."""
@@ -59,20 +59,13 @@ class SimpleAgent:
 
     def fly_to_another_url(self):
         """Déplacer l'agent vers une autre URL."""
-        # Récupérer toutes les URLs sauf l'URL actuelle
-        possible_urls = [url for url in self.available_urls if url != self.current_url]
-
-        if not possible_urls:
-            print(f"L'agent {self.cid} ne peut pas voler : aucune autre URL disponible.")
-            return
-
         # Choisir une nouvelle URL parmi les possibles
-        new_url = random.choice(possible_urls)
-        print(f"L'agent {self.cid} tente de se déplacer de {self.current_url} vers {new_url}")
+        new_url = random.choice(self.available_urls)
+        print(f"L'agent {self.cid} tente de se déplacer de {self.engine_url} vers {new_url}")
 
         try:
             # Récupérer les données de l'agent à l'URL actuelle
-            response = requests.get(f"{self.current_url}/character/{self.cid}")
+            response = requests.get(f"{self.engine_url}/character/{self.cid}")
             if response.status_code == 200:
                 agent_data = response.json()
 
@@ -82,17 +75,19 @@ class SimpleAgent:
                     print(f"L'agent {self.cid} a rejoint la nouvelle URL {new_url}.")
 
                     # Tenter de supprimer l'agent de l'ancienne URL
-                    delete_response = requests.delete(f"{self.current_url}/character/{self.cid}")
+                    delete_response = requests.delete(f"{self.engine_url}/leave",json={"cid": self.cid})
+                    print(self.available_urls)
                     if delete_response.status_code == 200:
-                        print(f"L'agent {self.cid} a été supprimé de l'ancienne URL {self.current_url}.")
+                        print(f"L'agent {self.cid} a été supprimé de l'ancienne URL {self.engine_url}.")
                         
                         # Ajouter l'ancienne URL dans la liste des disponibles
-                        self.available_urls.append(self.current_url)
-                        print(f"L'ancienne URL {self.current_url} redevient disponible.")
-                        
+                        self.available_urls.append(self.engine_url)
+                        self.available_urls.remove(new_url)
+                        print(f"L'ancienne URL {self.engine_url} redevient disponible.")
+                        print(self.available_urls)
                         # Mettre à jour l'URL actuelle
-                        self.current_url = new_url
-                        print(f"Nouvelle URL actuelle pour l'agent {self.cid} : {self.current_url}")
+                        self.engine_url = new_url
+                        print(f"Nouvelle URL actuelle pour l'agent {self.cid} : {self.engine_url}")
 
                     else:
                         print(f"Erreur lors de la suppression de l'agent {self.cid} sur {self.current_url}: {delete_response.text}")
@@ -162,7 +157,7 @@ class SimpleAgent:
         """Exécuter les tours pour l'agent."""
         while True:
             self.play_turn()
-            time.sleep(5)  # Temps d'attente avant le prochain tour
+            time.sleep(15)  # Temps d'attente avant le prochain tour
 
 
 def start_agents_for_available_characters(engine_url, available_urls):
@@ -201,5 +196,5 @@ available_urls = [
 
 # Exemple d'initialisation et démarrage des agents automatiquement
 if __name__ == "__main__":
-    engine_url = "http://10.109.111.11:5000"  # L'URL de ton serveur API distant (par exemple: http://127.0.0.1:5000)
+    engine_url = "http://10.109.111.12:5000"  # L'URL de ton serveur API distant (par exemple: http://127.0.0.1:5000)
     start_agents_for_available_characters(engine_url, available_urls)
