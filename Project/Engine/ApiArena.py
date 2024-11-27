@@ -275,7 +275,7 @@ def add_random_characters():
         characters_added = []
         for i in range(5):
             # Générer un ID unique pour chaque personnage
-            cid = f"Random-{i+1}"
+            cid = f"Random-{randint(1,500)}"
 
             # Générer les statistiques aléatoires
             stats = {"life": 0, "strength": 0, "armor": 0, "speed": 0}
