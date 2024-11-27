@@ -256,6 +256,18 @@ def start_game():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/stop')
+def stop_game():
+    try:
+        if not engine.isRunning():
+            return jsonify({"error": " le jeu n'est pas en cours."}),400
+        
+        engine.stop()
+
+        return jsonify({"message": "Le jeu à stopper avec succès."}),200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/add_random_characters')
 def add_random_characters():
     """Ajoute 5 personnages avec des statistiques aléatoires à l'arène."""
@@ -313,6 +325,32 @@ def add_random_characters():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/leave', methods=['DELETE'])
+def leave_arena():
+    """Supprime un personnage de l'arène."""
+    data = request.json  # Récupérer les données JSON envoyées dans la requête
+
+    # Vérifier que le cid est bien présent dans la requête
+    if "cid" not in data:
+        return jsonify({"error": "Le 'cid' du personnage est manquant."}), 400
+
+    # Extraire le cid du personnage
+    cid = data["cid"]
+
+    
+    # Vérifier si le personnage existe (par exemple, via l'Engine ou la base de données)
+    character = engine.getPlayerByName(cid)  
+    print(character, "delete")
+    if not character:
+        return jsonify({"error": f"Le personnage '{cid}' n'existe pas."}), 404
+    
+    # Supprimer le personnage de l'arène
+    engine._arena.removePlayer(character)  
+    
+    #total_characters.dec()  
+
+    # Retourner une réponse de succès
+    return jsonify({"message": f"Le personnage '{cid}' a été supprimé de l'arène avec succès."}), 200
 
 def run_game():
     while not engine.isReadyToStart():
