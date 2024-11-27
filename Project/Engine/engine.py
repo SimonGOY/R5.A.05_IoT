@@ -141,7 +141,7 @@ class Engine:
                     # At some point, remove characters that take too long to send their next action
                     time.sleep(self._characterTimeout)
                     # remove inactive characters
-                    self._arena.removeAfkPlayers()
+                    # self._arena.removeAfkPlayers()
         else:
             raise Exception("Game is already running !")
 

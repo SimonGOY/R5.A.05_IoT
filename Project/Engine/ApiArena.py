@@ -259,18 +259,28 @@ def start_game():
         print(f"Erreur lors du démarrage du jeu : {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-
 @app.route('/stop')
 def stop_game():
     try:
         if not engine.isRunning():
-            return jsonify({"error": " le jeu n'est pas en cours."}),400
+            return jsonify({"error": "Le jeu n'est pas en cours."}), 400
         
+        # Arrêter le jeu
         engine.stop()
 
-        return jsonify({"message": "Le jeu à stopper avec succès."}),200
+        # Supprimer toutes les métriques des personnages
+        clear_character_metrics()
+
+        return jsonify({"message": "Le jeu a été stoppé avec succès et toutes les métriques ont été réinitialisées."}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+def clear_character_metrics():
+    """Supprime toutes les métriques des personnages actifs dans Prometheus."""
+    
+    for metric in [character_life, character_strength, character_armor, character_speed]:
+        # Supprimer toutes les valeurs des métriques pour les personnages disparus
+        metric.remove()
 
 @app.route('/add_random_characters')
 def add_random_characters():
@@ -356,8 +366,6 @@ def leave_arena():
     
     # Supprimer le personnage de l'arène
     engine._arena.removePlayer(character)  
-    
-    #total_characters.dec()  
 
     # Retourner une réponse de succès
     return jsonify({"message": f"Le personnage '{cid}' a été supprimé de l'arène avec succès."}), 200
