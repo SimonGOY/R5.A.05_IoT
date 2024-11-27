@@ -15,7 +15,6 @@ from threading import Lock
 
 
 app = Flask(__name__)
-action_lock = Lock()
 
 # Fonctions utilitaires
 @app.route('/')
@@ -108,10 +107,6 @@ def join_arena():
         # Gérer les erreurs
         return jsonify({"error": str(e)}), 500
 
-    finally:
-        # Libérer le verrou après avoir traité l'action
-        action_lock.release()
-
 @app.route('/characters', methods=['GET'])
 def get_characters():
     """Renvoie tous les IDs des personnages présents dans l'arène."""
@@ -201,8 +196,6 @@ def set_target():
 def set_action():
     """Permet à un personnage de définir une action."""
     try:
-        # Acquérir le verrou avant de traiter l'action
-        action_lock.acquire()
 
         # Récupérer les données du joueur et de l'action depuis la requête
         data = request.json
